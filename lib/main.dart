@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_ml_vision/firebase_ml_vision.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image/image.dart' as IMG;
+import 'package:path_provider/path_provider.dart';
 
 void main() => runApp(
       MaterialApp(
@@ -34,20 +34,27 @@ class _FacePageState extends State<FacePage> {
 
   _getImageAndDetectFaces() async {
     var imageFile1 = await ImagePicker().getImage(source: ImageSource.gallery);
-    var imageFile2 = await ImagePicker().getImage(source: ImageSource.gallery);
     setState(() {
       isLoading = true;
     });
     final image = FirebaseVisionImage.fromFile(File(imageFile1.path));
-    print(image);
     final faceDetector = FirebaseVision.instance.faceDetector();
     List<Face> faces = await faceDetector.processImage(image);
+
+    ByteData byteData = await rootBundle.load('assets/images/top_hat.png');
+    final buffer = byteData.buffer;
+    Directory tempDir = await getTemporaryDirectory();
+    String tempPath = tempDir.path;
+    var filePath = tempPath + '/file_01.tmp';
+    File file = await File(filePath).writeAsBytes(buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
+
     if (mounted) {
       setState(() {
         _imageFile = File(imageFile1.path);
         _faces = faces;
         _loadImage1(File(imageFile1.path));
-        _loadImage2(File(imageFile2.path));
+        _loadImage2(file);
+        isLoading = false;
       });
     }
   }
@@ -57,7 +64,6 @@ class _FacePageState extends State<FacePage> {
     await decodeImageFromList(data).then(
       (value) => setState(() {
         _image1 = value;
-        isLoading = false;
       }),
     );
   }
@@ -67,7 +73,6 @@ class _FacePageState extends State<FacePage> {
     await decodeImageFromList(data).then(
       (value) => setState(() {
         _image2 = value;
-        isLoading = false;
       }),
     );
   }
@@ -78,12 +83,12 @@ class _FacePageState extends State<FacePage> {
       body: isLoading
           ? Center(child: CircularProgressIndicator())
           : (_imageFile == null)
-              ? Center(child: Text('No image selected'))
+              ? Center(child: Text('Choose an image (with a face)'))
               : Center(
                   child: FittedBox(
                     child: SizedBox(
-                      width: _image1.width.toDouble(),
-                      height: _image1.height.toDouble(),
+                      width: _image1.width.toDouble() != null ? _image1.width.toDouble()  : 1000,
+                      height: _image1.height.toDouble() != null ? _image1.height.toDouble() : 1000,
                       child: CustomPaint(
                         painter: FacePainter(_image1, _image2, _faces),
                       ),
@@ -92,7 +97,7 @@ class _FacePageState extends State<FacePage> {
                 ),
       floatingActionButton: FloatingActionButton(
         onPressed: _getImageAndDetectFaces,
-        tooltip: 'Choose a picture of you then choose a PNG of a hat',
+        tooltip: 'Choose a picture',
         child: Icon(Icons.add_a_photo),
       ),
     );
@@ -104,7 +109,6 @@ class FacePainter extends CustomPainter {
   final ui.Image image2;
   final List<Face> faces;
   final List<Rect> rects = [];
-  var bkImage;
 
   FacePainter(this.image1, this.image2, this.faces) {
     for (var i = 0; i < faces.length; i++) {
@@ -120,13 +124,12 @@ class FacePainter extends CustomPainter {
       ..color = Colors.yellow;
 
     canvas.drawImage(image1, Offset.zero, Paint());
-//    canvas.drawImage(image, Offset(200, 200), Paint());
     for (var i = 0; i < faces.length; i++) {
       var x = rects[i].topCenter.dx;
       var y = rects[i].topCenter.dy;
       Rect a = Rect.fromCenter(
-          center: Offset(x, 7*y/8),
-          width: rects[i].width,
+          center: Offset(x, rects[i].topCenter.dy - (rects[i].height) / 4),
+          width: rects[i].width * 1.33,
           height: rects[i].height);
       paintImage(canvas: canvas, rect: a, image: image2);
 //      canvas.drawRect(a, paint);
@@ -135,6 +138,6 @@ class FacePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(FacePainter oldDelegate) {
-//    return image != oldDelegate.image || faces != oldDelegate.faces;
+//    return image1 != oldDelegate.image1 || faces != oldDelegate.faces;
   }
 }
