@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -7,6 +8,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_ml_vision/firebase_ml_vision.dart';
 import 'package:flutter/services.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -31,6 +33,7 @@ class _FacePageState extends State<FacePage> {
   bool isLoading = false;
   ui.Image _image1;
   ui.Image _image2;
+  var imageNumber = 0;
 
   _getImageAndDetectFaces() async {
     var imageFile1 = await ImagePicker().getImage(source: ImageSource.gallery);
@@ -41,13 +44,18 @@ class _FacePageState extends State<FacePage> {
     final faceDetector = FirebaseVision.instance.faceDetector();
     List<Face> faces = await faceDetector.processImage(image);
 
-    ByteData byteData = await rootBundle.load('assets/images/top_hat.png');
+    ByteData byteData;
+    if(imageNumber == 1)
+       byteData = await rootBundle.load('assets/images/top_hat.png');
+    if(imageNumber == 2)
+       byteData = await rootBundle.load('assets/images/cowboy_hat.png');
+    if(imageNumber == 3)
+      byteData = await rootBundle.load('assets/images/beanie.png');
     final buffer = byteData.buffer;
     Directory tempDir = await getTemporaryDirectory();
     String tempPath = tempDir.path;
     var filePath = tempPath + '/file_01.tmp';
     File file = await File(filePath).writeAsBytes(buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
-
     if (mounted) {
       setState(() {
         _imageFile = File(imageFile1.path);
@@ -80,23 +88,90 @@ class _FacePageState extends State<FacePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : (_imageFile == null)
-              ? Center(child: Text('Choose an image (with a face)'))
-              : Center(
-                  child: FittedBox(
-                    child: SizedBox(
-                      width: _image1.width.toDouble() != null ? _image1.width.toDouble()  : 1000,
-                      height: _image1.height.toDouble() != null ? _image1.height.toDouble() : 1000,
-                      child: CustomPaint(
-                        painter: FacePainter(_image1, _image2, _faces),
+      body: Padding(
+        padding: EdgeInsets.all(20),
+        child: isLoading
+            ? Center(child: CircularProgressIndicator())
+            : (_imageFile == null)
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Center(child: Text('Choose a hat then choose an image (with a face)')),
+                      SizedBox(height: 20),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: <Widget>[
+                            MaterialButton(
+                              color: imageNumber == 1 ? Colors.blue : null,
+                              child: Image(
+                                image: AssetImage('assets/images/top_hat.png'),
+                                height: 100,
+                                width: 100,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  imageNumber = 1;
+                                });
+                              },
+                            ),
+                            MaterialButton(
+                              color: imageNumber == 2 ? Colors.blue : null,
+                              child: Image(
+                                image: AssetImage('assets/images/cowboy_hat.png'),
+                                height: 100,
+                                width: 100,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  imageNumber = 2;
+                                });
+                              },
+                            ),
+                            MaterialButton(
+                              color: imageNumber == 3 ? Colors.blue : null,
+                              child: Image(
+                                image: AssetImage('assets/images/beanie.png'),
+                                height: 100,
+                                width: 100,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  imageNumber = 3;
+                                });
+                              },
+                            )
+                          ],
+                        ),
+                      )
+                    ],
+                  )
+                : Center(
+                    child: FittedBox(
+                      child: SizedBox(
+                        width: _image1.width.toDouble() != null ? _image1.width.toDouble() : 1000,
+                        height: _image1.height.toDouble() != null ? _image1.height.toDouble() : 1000,
+                        child: CustomPaint(
+                          painter: FacePainter(_image1, _image2, _faces),
+                        ),
                       ),
                     ),
                   ),
-                ),
+      ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _getImageAndDetectFaces,
+        onPressed: () {
+          if(imageNumber!=0)
+          _getImageAndDetectFaces();
+          else {
+            Fluttertoast.showToast(
+                msg: "Please select an image.",
+                toastLength: Toast.LENGTH_SHORT,
+                timeInSecForIosWeb: 1,
+                backgroundColor: Colors.grey,
+                fontSize: 16.0
+            );
+          }
+        },
         tooltip: 'Choose a picture',
         child: Icon(Icons.add_a_photo),
       ),

@@ -26,6 +26,7 @@ dependencies:
   image_picker:
   firebase_ml_vision:
   path_provider:
+  fluttertoast:
 
 
   # The following adds the Cupertino Icons font to your application.
